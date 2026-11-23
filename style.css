@@ -126,3 +126,12 @@ button.danger{background:var(--verm)}
 
 #btnHome{display:inline-flex;align-items:center;gap:6px}
 #btnHome .ico{flex:none}
+
+/* Troca de tarefa: contador maior, barra de progresso e animação de página */
+.cont span:first-child{font-size:24px;font-weight:800;color:#fff}
+.prog{height:5px;background:#ffffff33;border-radius:3px;margin:-2px 0 12px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--ciano);border-radius:3px;transition:width .3s}
+.pagina.anim-next{animation:entraDireita .28s ease-out}
+.pagina.anim-prev{animation:entraEsquerda .28s ease-out}
+@keyframes entraDireita{from{transform:translateX(70px);opacity:0}to{transform:none;opacity:1}}
+@keyframes entraEsquerda{from{transform:translateX(-70px);opacity:0}to{transform:none;opacity:1}}

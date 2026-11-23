@@ -1,5 +1,6 @@
 const MAX_FOTOS = 100;
-const SWIPE_DIREITA_AVANCA = true; // deslizar para a direita vai para a próxima tarefa
+const SWIPE_DIREITA_AVANCA = false; // arrastar da direita para a esquerda avança; da esquerda para a direita volta
+let direcao = ''; // 'next' | 'prev' (animação ao trocar de tarefa)
 
 let orcamentos = [];          // {id, cliente, descricao, numero}
 let todas = [];               // todas as atividades de todos os orçamentos (para contagens)
@@ -85,7 +86,9 @@ const incompleta = a => !a.titulo.trim() || fotosDe(a.id).length === 0;
 /* ---------- navegação ---------- */
 function ir(t, i) {
   if (t === 'clientes' || t === 'orcamentos') sync();
+  const antes = idx, estavaTarefa = tela === 'tarefa';
   if (i !== undefined) idx = Math.max(0, Math.min(atividades.length - 1, i));
+  direcao = (t === 'tarefa' && estavaTarefa && i !== undefined) ? (idx > antes ? 'next' : idx < antes ? 'prev' : '') : '';
   tela = t; render();
 }
 $('#btnHome').onclick = () => { $('#menu').classList.add('hidden'); ir('clientes'); };
@@ -210,9 +213,11 @@ function renderHome() {
 function renderTarefa() {
   if (!atividades.length) return ir('home');
   const a = atividades[idx], fs = fotosDe(a.id);
-  view.innerHTML = `
+  const anim = direcao ? ' anim-' + direcao : ''; direcao = '';
+  view.innerHTML = `<div class="pagina${anim}">
     <div class="cont"><span>Item ${idx + 1} de ${atividades.length}</span>
       <span class="nav"><button id="prev" ${idx === 0 ? 'disabled' : ''}>◀</button><button id="next" ${idx === atividades.length - 1 ? 'disabled' : ''}>▶</button></span></div>
+    <div class="prog"><i style="width:${((idx + 1) / atividades.length) * 100}%"></i></div>
     <label>Descrição do serviço</label>
     <input type="text" id="fTitulo" value="${esc(a.titulo)}" placeholder="Ex.: Instalar eletrocalha">
     <label>Local de instalação</label>
@@ -224,7 +229,7 @@ function renderTarefa() {
     <div class="row"><button id="btnCam" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>📷 Tirar foto</button><button class="sec" id="btnGal" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>📎 Anexar foto</button></div>
     <button class="concluir ${a.concluida ? 'on' : ''}" id="btnOk">${a.concluida ? '✔ Concluída' : '☐ Marcar como concluída'}</button>
     <div class="row"><button class="sec" id="btnDup">⧉ Duplicar</button><button class="sec" id="btnDel">🗑 Excluir</button></div>
-    <div class="dica">Deslize para o lado para trocar de tarefa (ou use ← →)</div>`;
+    <div class="dica">Arraste para a esquerda para avançar e para a direita para voltar (ou use ← →)</div></div>`;
 
   const salvar = () => DB.salvarAtividade(a);
   $('#fTitulo').oninput = e => { a.titulo = e.target.value; salvar(); };
