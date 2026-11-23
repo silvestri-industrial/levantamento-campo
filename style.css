@@ -137,3 +137,9 @@ button.danger{background:var(--verm)}
 @keyframes entraEsquerda{from{transform:translateX(-70px);opacity:0}to{transform:none;opacity:1}}
 
 #voltaLista{margin-bottom:10px}
+
+/* Faixa do orçamento aberto */
+.orc-banner{background:#ffffff1a;border-left:6px solid var(--ciano);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+.orc-banner small{display:block;font-weight:800;letter-spacing:.6px;color:var(--ciano);font-size:13px;margin-bottom:2px}
+.orc-banner b{display:block;font-size:20px;line-height:1.2;color:#fff;font-weight:800;word-break:break-word}
+#topTitle{font-size:16px}

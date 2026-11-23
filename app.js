@@ -185,6 +185,12 @@ function formOrcamento(o) {
   };
 }
 
+/* faixa que mostra qual orçamento está aberto */
+function bannerOrc() {
+  const o = orcAberto(); if (!o) return '';
+  return `<div class="orc-banner"><small>${esc(o.cliente.toUpperCase())} · ORÇAMENTO Nº ${o.numero}</small><b>${esc(o.descricao) || '(sem descrição)'}</b></div>`;
+}
+
 /* ---------- ATIVIDADES (HOME do orçamento) ---------- */
 function renderHome() {
   if (!orcAberto()) return ir('clientes');
@@ -193,8 +199,9 @@ function renderHome() {
   const pend = atividades.filter(incompleta).length;
   view.innerHTML = `
     <button class="sec" id="voltaOrc">‹ ${esc(o.cliente)}</button>
-    <h2 style="margin-top:10px">Atividades</h2>
-    <div class="resumo"><b>Orç. nº ${o.numero}</b> — ${esc(o.descricao)}<br>${feitas} de ${atividades.length} concluídas · ${pend} com pendência (❌ sem foto/descrição)</div>
+    ${bannerOrc()}
+    <h2>Atividades</h2>
+    <div class="resumo">${feitas} de ${atividades.length} concluídas · ${pend} com pendência (❌ sem foto/descrição)</div>
     ${atividades.map((a, i) => `
       <div class="item ${incompleta(a) ? 'alerta' : a.concluida ? 'ok' : ''}" data-i="${i}">
         <div class="n">Item ${i + 1}</div>
@@ -214,7 +221,7 @@ function renderTarefa() {
   if (!atividades.length) return ir('home');
   const a = atividades[idx], fs = fotosDe(a.id);
   const anim = direcao ? ' anim-' + direcao : ''; direcao = '';
-  view.innerHTML = `<div class="pagina${anim}">
+  view.innerHTML = bannerOrc() + `<div class="pagina${anim}">
     <button class="sec" id="voltaLista">‹ Lista de atividades</button>
     <div class="cont"><span>Item ${idx + 1} de ${atividades.length}</span>
       <span class="nav"><button id="prev" ${idx === 0 ? 'disabled' : ''}>◀</button><button id="next" ${idx === atividades.length - 1 ? 'disabled' : ''}>▶</button></span></div>
@@ -327,7 +334,8 @@ function renderEditar() {
   if (!orcAberto()) return ir('clientes');
   view.innerHTML = `
     <button class="sec" id="voltaHome">‹ Atividades</button>
-    <p class="ajuda" style="margin-top:10px">Cole aqui linhas do Excel/Word (<b>Ctrl+V</b>): cada linha vira uma atividade deste orçamento. Com 2 colunas = <i>descrição</i> e <i>local</i>. Marque linhas e use <b>Ctrl+C</b> para copiar.</p>
+    <div style="height:10px"></div>${bannerOrc()}
+    <p class="ajuda">Cole aqui linhas do Excel/Word (<b>Ctrl+V</b>): cada linha vira uma atividade deste orçamento. Com 2 colunas = <i>descrição</i> e <i>local</i>. Marque linhas e use <b>Ctrl+C</b> para copiar.</p>
     <textarea id="colar" placeholder="Cole aqui (Ctrl+V)…" style="min-height:70px"></textarea>
     <div class="row"><button id="btnAplicar">+ Criar atividades coladas</button></div>
     <label>Locais de instalação (cole uma coluna; linha 1 = Item 1, linha 2 = Item 2…)</label>
