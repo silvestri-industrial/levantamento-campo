@@ -1,0 +1,74 @@
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--azul:#0f4c81;--verde:#1e9e5a;--verm:#d93636;--cinza:#f2f4f7;--borda:#d5dae1}
+html,body{height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#cfd6de;color:#1b2430}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--azul);color:#fff}
+button.sec{background:#e6ebf1;color:#1b2430}
+button.danger{background:var(--verm)}
+button:disabled{opacity:.4;cursor:default}
+.hidden{display:none!important}
+
+#app{position:relative;width:100%;max-width:440px;height:100vh;height:100dvh;margin:0 auto;background:#fff;display:flex;flex-direction:column;box-shadow:0 0 30px #0003;overflow:hidden}
+@media(min-width:600px){#app{height:min(900px,96vh);margin-top:2vh;border-radius:24px}}
+
+#topbar{display:flex;align-items:center;gap:8px;padding:10px;background:var(--azul);color:#fff;padding-top:max(10px,env(safe-area-inset-top))}
+#topbar .top-btn{background:#ffffff26;padding:8px 12px}
+#topTitle{flex:1;text-align:center;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view{flex:1;overflow-y:auto;padding:14px}
+
+#menu{position:absolute;top:54px;right:10px;background:#fff;border-radius:12px;box-shadow:0 6px 24px #0004;z-index:20;display:flex;flex-direction:column;padding:6px;gap:4px}
+#menu button{background:none;color:#1b2430;text-align:left}
+#menu button.danger{color:var(--verm);background:none}
+
+/* Home */
+h2{font-size:20px;margin-bottom:6px}
+.resumo{color:#5b6675;font-size:14px;margin-bottom:12px}
+.item{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--borda);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff}
+.item.alerta{border-color:var(--verm);background:#fff3f3}
+.item.ok{border-color:#b9e3cc;background:#f1fbf5}
+.item .n{font-weight:700;color:var(--azul);min-width:54px}
+.item .t{flex:1;font-size:14px}
+.item .t small{display:block;color:#6b7686}
+.item .st{font-size:20px}
+.add{width:100%;margin-top:8px;background:var(--verde)}
+
+/* Clientes / orçamentos */
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cli{border:2px solid var(--azul);border-radius:14px;padding:16px 12px;cursor:pointer;background:#eef4fb;min-height:96px;display:flex;flex-direction:column;justify-content:space-between;gap:6px}
+.cli b{font-size:17px;color:var(--azul);word-break:break-word}
+.cli small{color:#5b6675}
+.item.orc{border-color:var(--azul);background:#eef4fb}
+.orc-tag{display:block;font-weight:800;font-size:13px;letter-spacing:.5px;color:var(--azul);margin-bottom:2px}
+button.mini{padding:6px 9px}
+.form{width:100%;max-width:400px;text-align:left}
+.form input{background:#fff}
+
+/* Tarefa */
+.cont{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:#5b6675;font-size:14px}
+.nav button{padding:6px 14px;margin-left:4px;background:#e6ebf1;color:#1b2430}
+label{display:block;font-size:12px;font-weight:700;color:#5b6675;margin:10px 0 4px;text-transform:uppercase}
+input[type=text],textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--borda);border-radius:10px;background:var(--cinza)}
+textarea{min-height:80px;resize:vertical}
+.fotos{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.fotos .th{position:relative;width:72px;height:72px}
+.fotos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--borda);cursor:zoom-in}
+.fotos .x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;padding:0;border-radius:50%;background:var(--verm);font-size:12px}
+.row{display:flex;gap:8px;margin-top:8px}
+.row button{flex:1}
+.concluir{width:100%;margin-top:14px;background:#e6ebf1;color:#1b2430;font-weight:700;padding:14px}
+.concluir.on{background:var(--verde);color:#fff}
+.dica{font-size:12px;color:#8a94a3;text-align:center;margin-top:10px}
+
+/* Overlay (ampliar / prévia) */
+#overlay{position:fixed;inset:0;background:#000d;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:14px}
+#overlay img{max-width:100%;max-height:75vh;border-radius:10px}
+#overlay .row{width:100%;max-width:400px}
+#overlay p{color:#fff}
+
+/* Edição em lote */
+.tabela textarea{min-height:260px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.ed-linha{display:flex;gap:6px;margin-bottom:6px}
+.ed-linha input{flex:1}
+.ed-linha button{padding:6px 9px;background:#e6ebf1;color:#1b2430}
+.ajuda{font-size:13px;color:#5b6675;margin-bottom:10px}
+
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1b2430;color:#fff;padding:10px 18px;border-radius:20px;z-index:99;font-size:14px}

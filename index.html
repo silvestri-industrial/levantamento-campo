@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f4c81">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Levantamento de Campo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <button id="btnHome" class="top-btn">🏠 Home</button>    <div id="topTitle">Levantamento de Campo</div>
+    <button id="btnMenu" class="top-btn">⋮</button>
+  </header>
+
+  <main id="view"></main>
+
+  <div id="menu" class="hidden">
+    <button data-act="editar">📝 Editar lista (colar do Excel)</button>
+    <button data-act="exportar">⬇️ Exportar levantamento</button>
+    <button data-act="importar">⬆️ Importar levantamento</button>
+    <button data-act="apagar" class="danger">🗑️ Apagar tudo</button>
+  </div>
+</div>
+
+<input type="file" id="fileFoto" accept="image/*" capture="environment" hidden>
+<input type="file" id="fileGaleria" accept="image/*" hidden>
+<input type="file" id="fileImport" accept=".json,application/json" hidden>
+
+<div id="overlay" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
