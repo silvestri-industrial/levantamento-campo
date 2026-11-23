@@ -105,3 +105,21 @@ button.danger{background:var(--verm)}
 #menu button{background:none}
 .hero{background:linear-gradient(180deg,transparent 55%,#003366 100%),var(--azul) url(fundo-hero.jpg) center bottom/cover no-repeat}
 .fotos img{border-color:#ffffff55}
+
+/* Degradê da apresentação: imagem inteira, azul liso à esquerda -> foto à direita */
+#app{background:#003366 url(fundo-app.jpg) top center/100% auto no-repeat}
+#topbar{background:transparent}
+.hero{background:none;padding-bottom:40px}
+
+/* === Degradê da capa da apresentação (imagem inteira, sem linha de corte) === */
+:root{--ciano:#00A8E8;--fundo:#003466}
+#app{background:var(--fundo) url(fundo-app.jpg) top center/100% auto no-repeat}
+#topbar{background:transparent}
+.hero{background:none;padding-bottom:40px}
+
+/* === Cards em destaque sobre o fundo azul === */
+.cli{background:#fff;border:0;border-top:6px solid var(--ciano);border-radius:14px;box-shadow:0 4px 14px #0005}
+.cli-tag{font-size:11px;font-weight:800;letter-spacing:.8px;color:var(--ciano)}
+.item.orc{background:#fff;border:0;border-left:7px solid var(--ciano);box-shadow:0 3px 10px #0004}
+.item.orc .orc-tag{color:var(--azul)}
+.item{box-shadow:0 2px 8px #0003}
