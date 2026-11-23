@@ -135,3 +135,5 @@ button.danger{background:var(--verm)}
 .pagina.anim-prev{animation:entraEsquerda .28s ease-out}
 @keyframes entraDireita{from{transform:translateX(70px);opacity:0}to{transform:none;opacity:1}}
 @keyframes entraEsquerda{from{transform:translateX(-70px);opacity:0}to{transform:none;opacity:1}}
+
+#voltaLista{margin-bottom:10px}

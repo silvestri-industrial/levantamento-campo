@@ -215,6 +215,7 @@ function renderTarefa() {
   const a = atividades[idx], fs = fotosDe(a.id);
   const anim = direcao ? ' anim-' + direcao : ''; direcao = '';
   view.innerHTML = `<div class="pagina${anim}">
+    <button class="sec" id="voltaLista">‹ Lista de atividades</button>
     <div class="cont"><span>Item ${idx + 1} de ${atividades.length}</span>
       <span class="nav"><button id="prev" ${idx === 0 ? 'disabled' : ''}>◀</button><button id="next" ${idx === atividades.length - 1 ? 'disabled' : ''}>▶</button></span></div>
     <div class="prog"><i style="width:${((idx + 1) / atividades.length) * 100}%"></i></div>
@@ -231,6 +232,7 @@ function renderTarefa() {
     <div class="row"><button class="sec" id="btnDup">⧉ Duplicar</button><button class="sec" id="btnDel">🗑 Excluir</button></div>
     <div class="dica">Arraste para a esquerda para avançar e para a direita para voltar (ou use ← →)</div></div>`;
 
+  $('#voltaLista').onclick = () => ir('home');
   const salvar = () => DB.salvarAtividade(a);
   $('#fTitulo').oninput = e => { a.titulo = e.target.value; salvar(); };
   $('#fLocal').oninput = e => { a.local = e.target.value; salvar(); };
