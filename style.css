@@ -123,3 +123,6 @@ button.danger{background:var(--verm)}
 .item.orc{background:#fff;border:0;border-left:7px solid var(--ciano);box-shadow:0 3px 10px #0004}
 .item.orc .orc-tag{color:var(--azul)}
 .item{box-shadow:0 2px 8px #0003}
+
+#btnHome{display:inline-flex;align-items:center;gap:6px}
+#btnHome .ico{flex:none}
