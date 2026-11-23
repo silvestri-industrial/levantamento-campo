@@ -88,3 +88,20 @@ h2{color:var(--azul);font-weight:800}
 
 .add{background:var(--azul)}
 #topTitle{text-shadow:0 1px 3px #0008}
+
+/* Fundo azul escuro (como o cabeçalho) */
+:root{--acento:#0b6fc2}
+#app{background:linear-gradient(180deg,#003366 0%,#002a54 100%)}
+#view{color:#fff}
+#view h2{color:#fff}
+.resumo,.ajuda,label,.cont,.dica{color:#D9D9D9}
+.item,.cli,.item .t{color:#1b2430}
+.cli b{color:var(--azul)}
+input[type=text],textarea{color:#1b2430;background:#fff}
+button{background:var(--acento)}
+.add{background:var(--acento)}
+button.sec{background:var(--apoio);color:var(--azul)}
+button.danger{background:var(--verm)}
+#menu button{background:none}
+.hero{background:linear-gradient(180deg,transparent 55%,#003366 100%),var(--azul) url(fundo-hero.jpg) center bottom/cover no-repeat}
+.fotos img{border-color:#ffffff55}
