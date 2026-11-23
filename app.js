@@ -343,12 +343,14 @@ function renderEditar() {
     <div class="row"><button id="btnLocais">📍 Aplicar locais às atividades</button></div>
     <div class="row"><button class="sec" id="btnCopiar">Copiar marcadas (Ctrl+C)</button><button class="sec" id="btnTodas">Marcar todas</button></div>
     <div class="row"><button style="background:var(--verde)" id="btnLink">📲 Gerar link para o celular</button></div>
+    <div class="row"><button class="sec" id="btnArq">📄 Baixar arquivo para o celular</button></div>
     <div id="lista" style="margin-top:12px"></div>
     <button class="add" id="btnAdd2">+ Adicionar serviço</button>`;
   desenharLista();
   $('#voltaHome').onclick = () => ir('home');
   $('#btnAplicar').onclick = () => colar($('#colar').value, true);
   $('#btnLink').onclick = gerarLink;
+  $('#btnArq').onclick = baixarArquivoOrcamento;
   $('#btnLocais').onclick = async () => {
     const ls = $('#colarLocal').value.split(/\r?\n/).map(l => l.trim()).filter((l, i, arr) => l || i < arr.length - 1);
     if (!ls.length) return toast('Cole os locais primeiro');
@@ -444,30 +446,56 @@ $('#fileImport').onchange = async e => {
 /* ---------- LINK PARA O CELULAR (orçamento + lista de tarefas no endereço) ---------- */
 const b64 = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64 = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
-function gerarLink() {
+// compacta o texto (deflate) e converte para base64 "de URL": link bem mais curto
+const bytes2b64 = u8 => { let b = ''; u8.forEach(x => b += String.fromCharCode(x)); return btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const b642bytes = t => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+async function comprimir(txt) {
+  const buf = await new Response(new Blob([txt]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+  return bytes2b64(new Uint8Array(buf));
+}
+async function descomprimir(b64) {
+  return new Response(new Blob([b642bytes(b64)]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+}
+async function gerarLink() {
   const o = orcAberto();
   if (!o || !atividades.length) return toast('Cole as tarefas primeiro');
-  const dados = { c: o.cliente, d: o.descricao, n: o.numero, l: atividades.map(a => [a.titulo, a.local, a.obs]) };
-  const url = location.href.split('#')[0] + '#orc=' + b64(JSON.stringify(dados));
-  overlay(`<p>Envie este link para o celular (WhatsApp, e-mail). Ao abrir, o orçamento de ${esc(o.cliente)} com ${atividades.length} tarefas é carregado.</p>
-    <textarea id="lnk" style="max-width:400px;min-height:120px" readonly>${esc(url)}</textarea>
-    <div class="row"><button id="lnkCopia">Copiar link</button><button class="sec" id="lnkFecha">Fechar</button></div>`);
+  const dados = [o.cliente, o.descricao, o.numero, atividades.map(a => a.obs ? [a.titulo, a.local, a.obs] : [a.titulo, a.local])];
+  let url;
+  try { url = location.href.split('#')[0] + '#z=' + await comprimir(JSON.stringify(dados)); }
+  catch { url = location.href.split('#')[0] + '#orc=' + b64(JSON.stringify({ c: o.cliente, d: o.descricao, n: o.numero, l: dados[3] })); }
+  const longo = url.length > 2000;
+  overlay(`<div class="form"><p style="color:#fff">Link do orçamento de ${esc(o.cliente)} com ${atividades.length} tarefas (${url.length} caracteres).</p>
+    ${longo ? '<p style="color:#ffd27a">Link muito longo: se não abrir no celular, use “Baixar arquivo para o celular”.</p>' : ''}
+    <textarea id="lnk" style="min-height:110px" readonly>${esc(url)}</textarea>
+    <div class="row"><button id="lnkCopia">Copiar link</button><button class="sec" id="lnkFecha">Fechar</button></div></div>`);
   $('#lnkCopia').onclick = async () => { try { await navigator.clipboard.writeText(url); toast('Link copiado'); } catch { $('#lnk').select(); } };
   $('#lnkFecha').onclick = fechar;
 }
+// arquivo só deste orçamento (sem fotos), para enviar por WhatsApp/e-mail e abrir no celular com ⋮ → Importar
+function baixarArquivoOrcamento() {
+  const o = orcAberto(); if (!o) return;
+  const dados = { versao: 2, orcamentos: [o], atividades: atividades.map(a => ({ ...a, concluida: false })), fotos: [] };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(dados)], { type: 'application/json' }));
+  a.download = `orcamento-${o.numero}-${o.cliente.replace(/[^\w-]+/g, '_')}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('Arquivo baixado — envie para o celular e use ⋮ → Importar');
+}
 async function importarDoLink() {
-  const m = location.hash.match(/^#orc=(.+)$/); if (!m) return;
+  const mz = location.hash.match(/^#z=(.+)$/), mo = location.hash.match(/^#orc=(.+)$/);
+  if (!mz && !mo) return;
   try {
-    const d = JSON.parse(unb64(m[1]));
-    let num = d.n;
-    if (orcamentos.some(o => o.numero === num)) num = proximoNumero();
-    const o = await criarOrcamento(d.c, d.d, num);
+    let c, d, n, l;
+    if (mz) { [c, d, n, l] = JSON.parse(await descomprimir(mz[1])); }
+    else { const x = JSON.parse(unb64(mo[1])); c = x.c; d = x.d; n = x.n; l = x.l; }
+    if (orcamentos.some(o => o.numero === n)) n = proximoNumero();
+    const o = await criarOrcamento(c, d, n);
     abrirOrc(o.id);
-    for (const [t, l, ob] of d.l) await novaAtividade(t || '', l || '', ob || '');
-    toast(`Orçamento carregado: ${d.l.length} tarefas`);
+    for (const [t, loc, ob] of l) await novaAtividade(t || '', loc || '', ob || '');
+    toast(`Orçamento carregado: ${l.length} tarefas`);
     history.replaceState(null, '', location.pathname);
     return 'home';
-  } catch { toast('Link inválido'); history.replaceState(null, '', location.pathname); }
+  } catch { toast('Link inválido ou incompleto'); history.replaceState(null, '', location.pathname); }
 }
 
 /* ---------- início ---------- */
