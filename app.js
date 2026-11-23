@@ -116,6 +116,7 @@ function renderClientes() {
   sync();
   const nomes = [...new Set(orcamentos.map(o => o.cliente))].sort((a, b) => a.localeCompare(b));
   view.innerHTML = `
+    <div class="hero"><img src="logo-branco.png" alt="Silvestri"><p>Levantamento de Campo<small>Clientes e orçamentos</small></p></div>
     <h2>Clientes</h2>
     <div class="resumo">${nomes.length} cliente(s) · ${orcamentos.length} orçamento(s)</div>
     <div class="grade">${nomes.map(n => {
