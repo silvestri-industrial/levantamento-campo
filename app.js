@@ -122,7 +122,7 @@ function renderClientes() {
     <div class="grade">${nomes.map(n => {
       const os = orcamentos.filter(o => o.cliente === n);
       const qt = todas.filter(a => os.some(o => o.id === a.orcId)).length;
-      return `<div class="cli" data-c="${esc(n)}"><span class="cli-tag">CLIENTE</span><b>${esc(n)}</b><small>${os.length} orçamento(s)<br>${qt} atividade(s)</small></div>`;
+      return `<div class="cli" data-c="${esc(n)}"><b>${esc(n)}</b><small>${os.length} orçamento(s)<br>${qt} atividade(s)</small></div>`;
     }).join('')}</div>
     ${nomes.length ? '' : '<p class="ajuda">Nenhum cliente ainda. Toque em “+ Criar orçamento”.</p>'}
     <button class="add" id="btnNovoOrc">+ Criar orçamento</button>`;
