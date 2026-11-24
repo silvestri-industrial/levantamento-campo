@@ -99,6 +99,7 @@ $('#menu').onclick = async e => {
   if (act === 'exportar') exportar();
   if (act === 'importar') $('#fileImport').click();
   if (act === 'colarlink') colarLink();
+  if (act === 'relatorio') { if (!orcAtual) return toast('Abra um orçamento primeiro'); abrirRelatorio(); }
   if (act === 'apagar' && await confirmar('Apagar TODOS os clientes, orçamentos, atividades e fotos deste aparelho?')) {
     await DB.limpar(); orcamentos = []; todas = []; atividades = []; fotos = {}; orcAtual = null; ir('clientes');
   }
@@ -211,7 +212,9 @@ function renderHome() {
         <div class="st">${a.concluida ? '✅' : ''}${incompleta(a) ? '❌' : ''}</div>
       </div>`).join('') || '<p class="ajuda">Nenhuma atividade ainda. Use “+ Adicionar serviço” ou ⋮ → Editar lista para colar do Excel.</p>'}
     <button class="add" id="btnAdd">+ Adicionar serviço</button>
-    <button class="sec" style="width:100%;margin-top:8px" id="btnEd">📝 Editar lista (colar do Excel)</button>`;
+    <button class="sec" style="width:100%;margin-top:8px" id="btnEd">📝 Editar lista (colar do Excel)</button>
+    <button style="width:100%;margin-top:8px;background:var(--verde)" id="btnRel">📄 Relatório em PDF (com fotos)</button>`;
+  $('#btnRel').onclick = abrirRelatorio;
   $('#voltaOrc').onclick = () => { clienteAtual = o.cliente; ir('orcamentos'); };
   view.querySelectorAll('.item').forEach(el => el.onclick = () => ir('tarefa', +el.dataset.i));
   $('#btnAdd').onclick = async () => { await novaAtividade(); ir('tarefa', atividades.length - 1); };
@@ -570,9 +573,46 @@ function colarLink() {
   };
 }
 
+/* ---------- RELATÓRIO EM PDF (com todas as fotos) ---------- */
+// Monta o relatório na tela; "Imprimir / Salvar PDF" abre a impressão do aparelho, onde se escolhe "Salvar como PDF".
+async function abrirRelatorio() {
+  const o = orcAberto(); if (!o) return toast('Abra um orçamento primeiro');
+  const area = $('#print-area');
+  const dt = new Date().toLocaleDateString('pt-BR');
+  let totFotos = 0, totVideos = 0;
+  const blocos = atividades.map((a, i) => {
+    const ms = fotosDe(a.id), fs = ms.filter(m => m.tipo !== 'video'), nv = ms.length - fs.length;
+    totFotos += fs.length; totVideos += nv;
+    return `<section class="rp-item">
+      <div class="rp-tit"><span>ITEM ${i + 1}</span><em class="${a.concluida ? 'ok' : 'pend'}">${a.concluida ? 'Concluída' : 'Pendente'}</em></div>
+      <p class="rp-desc">${esc(a.titulo) || '(sem descrição)'}</p>
+      <p><b>Local de instalação:</b> ${esc(a.local) || '—'}</p>
+      ${a.obs ? `<p><b>Observações:</b> ${esc(a.obs)}</p>` : ''}
+      ${fs.length ? `<div class="rp-fotos">${fs.map((f, k) => `<figure><img src="${f.data}"><figcaption>Foto ${k + 1} de ${fs.length}</figcaption></figure>`).join('')}</div>` : '<p class="rp-sem">Sem fotos</p>'}
+      ${nv ? `<p class="rp-vid">${nv} vídeo(s) anexado(s) no aplicativo (vídeos não entram no PDF).</p>` : ''}
+    </section>`;
+  }).join('');
+  area.innerHTML = `
+    <div class="rp-barra"><button class="sec" id="rpVolta">‹ Voltar</button><button id="rpPrint" style="background:var(--verde)">🖨 Imprimir / Salvar PDF</button></div>
+    <div class="rp-pagina">
+      <div class="rp-cab"><img src="logo-branco.png" alt="Silvestri"><div><b>RELATÓRIO DE LEVANTAMENTO DE CAMPO</b><span>${esc(o.cliente)} · Orçamento nº ${o.numero}</span></div></div>
+      <h1>${esc(o.descricao) || '(sem descrição)'}</h1>
+      <p class="rp-meta">Data: ${dt} · ${atividades.length} atividade(s) · ${atividades.filter(a => a.concluida).length} concluída(s) · ${totFotos} foto(s)${totVideos ? ` · ${totVideos} vídeo(s) fora do PDF` : ''}</p>
+      ${blocos || '<p>Nenhuma atividade neste orçamento.</p>'}
+    </div>`;
+  document.body.classList.add('relatorio');
+  area.scrollTop = 0;
+  $('#rpVolta').onclick = () => { document.body.classList.remove('relatorio'); area.innerHTML = ''; };
+  $('#rpPrint').onclick = async () => {
+    await Promise.all([...area.querySelectorAll('img')].map(im => im.decode ? im.decode().catch(() => {}) : 0));
+    const t = document.title; document.title = `Relatorio-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_');
+    window.print(); setTimeout(() => { document.title = t; }, 1500);
+  };
+}
+
 /* ---------- início ---------- */
 carregar().then(importarDoLink).then(destino => ir(destino || 'clientes'));
-const VERSAO = '2026-11-23 · v7';
+const VERSAO = '2026-11-23 · v8';
 if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const tinhaSW = !!navigator.serviceWorker.controller;
