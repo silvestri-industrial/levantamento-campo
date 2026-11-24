@@ -235,9 +235,10 @@ function renderTarefa() {
     <input type="text" id="fLocal" value="${esc(a.local)}" placeholder="Ex.: Sala 02 – 1º andar">
     <label>Descrição / observações do levantamento</label>
     <textarea id="fObs" placeholder="Escreva o que for útil para o levantamento">${esc(a.obs)}</textarea>
-    <label>Fotos (${fs.length}/${MAX_FOTOS})</label>
-    <div class="fotos">${fs.map(f => `<div class="th"><img src="${f.data}" data-f="${f.id}"><button class="x" data-d="${f.id}">✕</button></div>`).join('')}</div>
-    <div class="row"><button id="btnCam" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>📷 Tirar foto</button><button class="sec" id="btnGal" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>📎 Anexar foto</button></div>
+    <label>Fotos e vídeos (${fs.length}/${MAX_FOTOS})</label>
+    <div class="fotos">${fs.map(miniatura).join('')}</div>
+    <div class="row"><button id="btnCam" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>📷 Tirar foto</button><button id="btnVid" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>🎥 Filmar</button></div>
+    <div class="row"><button class="sec" id="btnGal" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>📎 Anexar foto ou vídeo</button></div>
     <button class="concluir ${a.concluida ? 'on' : ''}" id="btnOk">${a.concluida ? '✔ Concluída' : '☐ Marcar como concluída'}</button>
     <div class="row"><button class="sec" id="btnDup">⧉ Duplicar</button><button class="sec" id="btnDel">🗑 Excluir</button></div>
     <div class="dica">Arraste para a esquerda para avançar e para a direita para voltar (ou use ← →)</div></div>`;
@@ -250,6 +251,7 @@ function renderTarefa() {
   $('#prev').onclick = () => ir('tarefa', idx - 1);
   $('#next').onclick = () => ir('tarefa', idx + 1);
   $('#btnCam').onclick = () => $('#fileFoto').click();
+  $('#btnVid').onclick = () => $('#fileVideo').click();
   $('#btnGal').onclick = () => $('#fileGaleria').click();
   $('#btnOk').onclick = async () => { a.concluida = !a.concluida; await salvar(); renderTarefa(); };
   $('#btnDup').onclick = async () => { await novaAtividade(a.titulo, a.local, a.obs); toast('Duplicada (sem fotos)'); ir('tarefa', atividades.length - 1); };
@@ -257,9 +259,12 @@ function renderTarefa() {
     if (!await confirmar('Excluir esta atividade e suas fotos?')) return;
     await excluirAtividade(a.id); atividades.length ? ir('tarefa', Math.min(idx, atividades.length - 1)) : ir('home');
   };
-  view.querySelectorAll('.fotos img').forEach(im => im.onclick = () => ampliar(im.src));
+  view.querySelectorAll('.fotos [data-f]').forEach(el => el.onclick = () => {
+    const f = fotosDe(a.id).find(x => x.id === el.dataset.f); if (!f) return;
+    f.tipo === 'video' ? ampliarVideo(urlMidia(f)) : ampliar(f.data);
+  });
   view.querySelectorAll('.fotos .x').forEach(b => b.onclick = async () => {
-    if (!await confirmar('Excluir esta foto?')) return;
+    if (!await confirmar('Excluir este arquivo (foto/vídeo)?')) return;
     await DB.apagarFoto(b.dataset.d); fotos[a.id] = fotosDe(a.id).filter(f => f.id !== b.dataset.d); renderTarefa();
   });
 }
@@ -278,6 +283,15 @@ window.addEventListener('unhandledrejection', e => toast('Erro: ' + (e.reason &&
 
 function overlay(html) { const o = $('#overlay'); o.onclick = null; o.innerHTML = html; o.classList.remove('hidden'); return o; }
 const fechar = () => { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; };
+const urls = {};
+const urlMidia = f => f.tipo === 'video' ? (urls[f.id] ||= URL.createObjectURL(f.blob)) : f.data;
+const miniatura = f => f.tipo === 'video'
+  ? `<div class="th"><video src="${urlMidia(f)}#t=0.1" preload="metadata" muted playsinline data-f="${f.id}"></video><span class="play">▶</span><button class="x" data-d="${f.id}">✕</button></div>`
+  : `<div class="th"><img src="${f.data}" data-f="${f.id}"><button class="x" data-d="${f.id}">✕</button></div>`;
+function ampliarVideo(src) {
+  const o = overlay(`<video src="${src}" controls autoplay playsinline style="max-width:100%;max-height:75vh;border-radius:10px"></video><div class="row"><button class="sec" id="ovFechar">Fechar</button></div>`);
+  o.onclick = e => { if (e.target.tagName !== 'VIDEO') fechar(); };
+}
 function ampliar(src) {
   const o = overlay(`<img src="${src}"><div class="row"><button class="sec" id="ovFechar">Fechar</button></div>`);
   o.onclick = e => { if (e.target.tagName !== 'IMG') fechar(); };
@@ -301,19 +315,36 @@ function reduzir(file, max = 1280) {
 async function aoEscolherFoto(e) {
   const file = e.target.files[0]; e.target.value = '';
   if (!file) return;
+  if (file.type.startsWith('video/')) return previaVideo(file);
   try { fotoPendente = await reduzir(file); } catch { return toast('Não foi possível ler a foto'); }
   overlay(`<p>Usar esta foto?</p><img src="${fotoPendente}">
     <div class="row"><button class="danger" id="pvNao">✖ Não utilizar foto</button><button id="pvSim" style="background:var(--verde)">✔ Salvar foto</button></div>`);
   $('#pvNao').onclick = () => { fotoPendente = null; fechar(); };
   $('#pvSim').onclick = async () => {
     const a = atividades[idx];
-    if (fotosDe(a.id).length >= MAX_FOTOS) { fechar(); return toast('Limite de 100 fotos'); }
+    if (fotosDe(a.id).length >= MAX_FOTOS) { fechar(); return toast('Limite de 100 arquivos'); }
     const f = { id: uid(), atividadeId: a.id, data: fotoPendente, t: Date.now() };
     await DB.salvarFoto(f); (fotos[a.id] ||= []).push(f); fotoPendente = null; fechar(); renderTarefa(); toast('Foto salva');
   };
 }
+function previaVideo(file) {
+  const url = URL.createObjectURL(file), mb = (file.size / 1048576).toFixed(1);
+  overlay(`<p>Usar este vídeo? (${mb} MB)</p><video src="${url}" controls playsinline style="max-width:100%;max-height:60vh;border-radius:10px"></video>
+    <div class="row"><button class="danger" id="pvNao">✖ Não utilizar vídeo</button><button id="pvSim" style="background:var(--verde)">✔ Salvar vídeo</button></div>`);
+  $('#pvNao').onclick = () => { URL.revokeObjectURL(url); fechar(); };
+  $('#pvSim').onclick = async () => {
+    const a = atividades[idx];
+    if (fotosDe(a.id).length >= MAX_FOTOS) { fechar(); return toast('Limite de 100 arquivos'); }
+    try {
+      const f = { id: uid(), atividadeId: a.id, tipo: 'video', blob: file, t: Date.now() };
+      await DB.salvarFoto(f); (fotos[a.id] ||= []).push(f);
+      URL.revokeObjectURL(url); fechar(); renderTarefa(); toast('Vídeo salvo');
+    } catch { fechar(); toast('Não foi possível salvar o vídeo (pouco espaço?)'); }
+  };
+}
 $('#fileFoto').onchange = aoEscolherFoto;
 $('#fileGaleria').onchange = aoEscolherFoto;
+$('#fileVideo').onchange = aoEscolherFoto;
 
 /* ---------- swipe e teclado ---------- */
 let tx = null, ty = null;
@@ -414,9 +445,12 @@ document.addEventListener('copy', e => {
 });
 
 /* ---------- EXPORTAR / IMPORTAR (arquivo, inclui fotos) ---------- */
-function exportar() {
-  sync();
-  const dados = { versao: 2, exportadoEm: new Date().toISOString(), orcamentos, atividades: todas, fotos: Object.values(fotos).flat() };
+const blobParaDataURL = b => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
+async function exportar() {
+  sync(); toast('Preparando arquivo…');
+  const fts = [];
+  for (const f of Object.values(fotos).flat()) fts.push(f.tipo === 'video' ? { ...f, blob: undefined, data: await blobParaDataURL(f.blob) } : f);
+  const dados = { versao: 2, exportadoEm: new Date().toISOString(), orcamentos, atividades: todas, fotos: fts };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(dados)], { type: 'application/json' }));
   a.download = `levantamento-${new Date().toISOString().slice(0, 10)}.json`; a.click();
@@ -439,7 +473,9 @@ $('#fileImport').onchange = async e => {
     }
     for (const f of d.fotos || []) {
       if (!mapaA[f.atividadeId]) continue;
-      const n = { ...f, id: uid(), atividadeId: mapaA[f.atividadeId] }; await DB.salvarFoto(n); (fotos[n.atividadeId] ||= []).push(n);
+      const n = { ...f, id: uid(), atividadeId: mapaA[f.atividadeId] };
+      if (n.tipo === 'video' && n.data) { n.blob = await (await fetch(n.data)).blob(); delete n.data; }
+      await DB.salvarFoto(n); (fotos[n.atividadeId] ||= []).push(n);
     }
     if (orcAtual) atividades = todas.filter(a => a.orcId === orcAtual).sort((a, b) => a.ordem - b.ordem);
     toast('Levantamento importado (como novos orçamentos)'); ir('clientes');
