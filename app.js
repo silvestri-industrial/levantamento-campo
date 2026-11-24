@@ -1,5 +1,4 @@
 const MAX_FOTOS = 100;
-const SWIPE_DIREITA_AVANCA = false; // arrastar da direita para a esquerda avança; da esquerda para a direita volta
 let direcao = ''; // 'next' | 'prev' (animação ao trocar de tarefa)
 
 let orcamentos = [];          // {id, cliente, descricao, numero}
@@ -227,10 +226,10 @@ function renderTarefa() {
   view.innerHTML = bannerOrc() + `<div class="pagina${anim}">
     <button class="sec" id="voltaLista">‹ Lista de atividades</button>
     <div class="cont"><span>Item ${idx + 1} de ${atividades.length}</span>
-      <span class="nav"><button id="prev" ${idx === 0 ? 'disabled' : ''}>◀</button><button id="next" ${idx === atividades.length - 1 ? 'disabled' : ''}>▶</button></span></div>
+      <span class="nav"><button id="prev" ${idx === 0 ? 'disabled' : ''}>▲ Anterior</button><button id="next" ${idx === atividades.length - 1 ? 'disabled' : ''}>Próxima ▼</button></span></div>
     <div class="prog"><i style="width:${((idx + 1) / atividades.length) * 100}%"></i></div>
     <label>Descrição do serviço</label>
-    <textarea class="auto" id="fTitulo" rows="2" placeholder="Ex.: Instalar eletrocalha">${esc(a.titulo)}</textarea>
+    <textarea class="auto" id="fTitulo" rows="3" placeholder="Ex.: Instalar eletrocalha">${esc(a.titulo)}</textarea>
     <label>Local de instalação</label>
     <textarea class="auto" id="fLocal" rows="1" placeholder="Ex.: Sala 02 – 1º andar">${esc(a.local)}</textarea>
     <label>Descrição / observações do levantamento</label>
@@ -241,7 +240,7 @@ function renderTarefa() {
     <div class="row"><button class="sec" id="btnGal" ${fs.length >= MAX_FOTOS ? 'disabled' : ''}>📎 Anexar foto ou vídeo</button></div>
     <button class="concluir ${a.concluida ? 'on' : ''}" id="btnOk">${a.concluida ? '✔ Concluída' : '☐ Marcar como concluída'}</button>
     <div class="row"><button class="sec" id="btnDup">⧉ Duplicar</button><button class="sec" id="btnDel">🗑 Excluir</button></div>
-    <div class="dica">Arraste para a esquerda para avançar e para a direita para voltar (ou use ← →)</div></div>`;
+    <div class="dica">⬆ Arraste para cima (no fim da página) para a próxima atividade · para baixo (no topo) para voltar</div></div>`;
 
   $('#voltaLista').onclick = () => ir('home');
   view.querySelectorAll('textarea.auto').forEach(crescer);
@@ -287,7 +286,9 @@ function crescer(el) {
   const ajusta = () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; };
   el.addEventListener('input', ajusta);
   el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
-  ajusta(); setTimeout(ajusta, 60);
+  ajusta(); setTimeout(ajusta, 60); setTimeout(ajusta, 400);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajusta);
+  if (window.ResizeObserver) { let w = el.clientWidth; new ResizeObserver(() => { if (el.clientWidth !== w) { w = el.clientWidth; ajusta(); } }).observe(el); }
 }
 
 function overlay(html) { const o = $('#overlay'); o.onclick = null; o.innerHTML = html; o.classList.remove('hidden'); return o; }
@@ -356,20 +357,25 @@ $('#fileGaleria').onchange = aoEscolherFoto;
 $('#fileVideo').onchange = aoEscolherFoto;
 
 /* ---------- swipe e teclado ---------- */
-let tx = null, ty = null;
-view.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+// arrastar para CIMA avança para a próxima atividade; para BAIXO volta (como no Instagram).
+// Se a página ainda tem o que rolar, o arrasto apenas rola; ao chegar no fim/início, o próximo arrasto troca de atividade.
+let ty = null, noFim = false, noTopo = false;
+view.addEventListener('touchstart', e => {
+  ty = e.touches[0].clientY;
+  noTopo = view.scrollTop <= 2;
+  noFim = view.scrollTop + view.clientHeight >= view.scrollHeight - 2;
+}, { passive: true });
 view.addEventListener('touchend', e => {
-  if (tela !== 'tarefa' || tx === null) return;
-  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; tx = null;
-  if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-  const avanca = SWIPE_DIREITA_AVANCA ? dx > 0 : dx < 0;
-  const novo = idx + (avanca ? 1 : -1);
-  if (novo >= 0 && novo < atividades.length) ir('tarefa', novo);
+  if (tela !== 'tarefa' || ty === null) return;
+  const dy = e.changedTouches[0].clientY - ty; ty = null;
+  if (Math.abs(dy) < 80) return;
+  if (dy < 0 && noFim && idx < atividades.length - 1) ir('tarefa', idx + 1);
+  else if (dy > 0 && noTopo && idx > 0) ir('tarefa', idx - 1);
 }, { passive: true });
 document.addEventListener('keydown', e => {
   if (tela !== 'tarefa' || ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) || !$('#overlay').classList.contains('hidden')) return;
-  if (e.key === 'ArrowRight' && idx < atividades.length - 1) ir('tarefa', idx + 1);
-  if (e.key === 'ArrowLeft' && idx > 0) ir('tarefa', idx - 1);
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowRight') && idx < atividades.length - 1) ir('tarefa', idx + 1);
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowLeft') && idx > 0) ir('tarefa', idx - 1);
 });
 
 /* ---------- EDITAR LISTA (PC): colar do Excel, copiar, duplicar, mover ---------- */
