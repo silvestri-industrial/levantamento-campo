@@ -230,9 +230,9 @@ function renderTarefa() {
       <span class="nav"><button id="prev" ${idx === 0 ? 'disabled' : ''}>◀</button><button id="next" ${idx === atividades.length - 1 ? 'disabled' : ''}>▶</button></span></div>
     <div class="prog"><i style="width:${((idx + 1) / atividades.length) * 100}%"></i></div>
     <label>Descrição do serviço</label>
-    <input type="text" id="fTitulo" value="${esc(a.titulo)}" placeholder="Ex.: Instalar eletrocalha">
+    <textarea class="auto" id="fTitulo" rows="2" placeholder="Ex.: Instalar eletrocalha">${esc(a.titulo)}</textarea>
     <label>Local de instalação</label>
-    <input type="text" id="fLocal" value="${esc(a.local)}" placeholder="Ex.: Sala 02 – 1º andar">
+    <textarea class="auto" id="fLocal" rows="1" placeholder="Ex.: Sala 02 – 1º andar">${esc(a.local)}</textarea>
     <label>Descrição / observações do levantamento</label>
     <textarea id="fObs" placeholder="Escreva o que for útil para o levantamento">${esc(a.obs)}</textarea>
     <label>Fotos e vídeos (${fs.length}/${MAX_FOTOS})</label>
@@ -244,6 +244,7 @@ function renderTarefa() {
     <div class="dica">Arraste para a esquerda para avançar e para a direita para voltar (ou use ← →)</div></div>`;
 
   $('#voltaLista').onclick = () => ir('home');
+  view.querySelectorAll('textarea.auto').forEach(crescer);
   const salvar = () => DB.salvarAtividade(a);
   $('#fTitulo').oninput = e => { a.titulo = e.target.value; salvar(); };
   $('#fLocal').oninput = e => { a.local = e.target.value; salvar(); };
@@ -280,6 +281,14 @@ function confirmar(msg) {
 }
 window.addEventListener('error', e => toast('Erro: ' + e.message));
 window.addEventListener('unhandledrejection', e => toast('Erro: ' + (e.reason && e.reason.message || e.reason)));
+
+// caixa de texto que cresce sozinha para mostrar todo o texto (sem Enter: vira uma linha só)
+function crescer(el) {
+  const ajusta = () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; };
+  el.addEventListener('input', ajusta);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  ajusta(); setTimeout(ajusta, 60);
+}
 
 function overlay(html) { const o = $('#overlay'); o.onclick = null; o.innerHTML = html; o.classList.remove('hidden'); return o; }
 const fechar = () => { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; };
@@ -403,14 +412,14 @@ function desenharLista() {
     <div class="ed-linha" data-id="${a.id}">
       <input type="checkbox" ${selecionadas.has(a.id) ? 'checked' : ''} data-s="${a.id}">
       <span style="min-width:22px;padding-top:8px">${i + 1}</span>
-      <input type="text" data-k="titulo" value="${esc(a.titulo)}" placeholder="Descrição">
-      <input type="text" data-k="local" value="${esc(a.local)}" placeholder="Local">
+      <textarea class="auto" rows="1" data-k="titulo" placeholder="Descrição">${esc(a.titulo)}</textarea>
+      <textarea class="auto" rows="1" data-k="local" placeholder="Local">${esc(a.local)}</textarea>
       <button data-m="up">↑</button><button data-m="down">↓</button><button data-m="dup">⧉</button><button data-m="del">✕</button>
     </div>`).join('');
   L.querySelectorAll('.ed-linha').forEach(row => {
     const a = atividades.find(x => x.id === row.dataset.id);
     row.querySelector('[data-s]').onchange = e => e.target.checked ? selecionadas.add(a.id) : selecionadas.delete(a.id);
-    row.querySelectorAll('input[type=text]').forEach(inp => inp.oninput = () => { a[inp.dataset.k] = inp.value; DB.salvarAtividade(a); });
+    row.querySelectorAll('textarea.auto').forEach(inp => { crescer(inp); inp.addEventListener('input', () => { a[inp.dataset.k] = inp.value; DB.salvarAtividade(a); }); });
     row.querySelectorAll('[data-m]').forEach(b => b.onclick = async () => {
       const i = atividades.indexOf(a), m = b.dataset.m;
       if (m === 'up' && i > 0) [atividades[i - 1], atividades[i]] = [atividades[i], atividades[i - 1]];
