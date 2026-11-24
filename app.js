@@ -99,6 +99,7 @@ $('#menu').onclick = async e => {
   if (act === 'editar') { if (!orcAtual) return toast('Abra um orçamento primeiro'); ir('editar'); }
   if (act === 'exportar') exportar();
   if (act === 'importar') $('#fileImport').click();
+  if (act === 'colarlink') colarLink();
   if (act === 'apagar' && await confirmar('Apagar TODOS os clientes, orçamentos, atividades e fotos deste aparelho?')) {
     await DB.limpar(); orcamentos = []; todas = []; atividades = []; fotos = {}; orcAtual = null; ir('clientes');
   }
@@ -128,7 +129,9 @@ function renderClientes() {
       return `<div class="cli" data-c="${esc(n)}"><b>${esc(n)}</b><small>${os.length} orçamento(s)<br>${qt} atividade(s)</small></div>`;
     }).join('')}</div>
     ${nomes.length ? '' : '<p class="ajuda">Nenhum cliente ainda. Toque em “+ Criar orçamento”.</p>'}
-    <button class="add" id="btnNovoOrc">+ Criar orçamento</button>`;
+    <button class="add" id="btnNovoOrc">+ Criar orçamento</button>
+    <button class="sec" style="width:100%;margin-top:8px" id="btnColarLink">📋 Colar link do orçamento</button>`;
+  $('#btnColarLink').onclick = colarLink;
   view.querySelectorAll('.cli').forEach(el => el.onclick = () => { clienteAtual = el.dataset.c; ir('orcamentos'); });
   $('#btnNovoOrc').onclick = () => formOrcamento();
 }
@@ -481,21 +484,39 @@ function baixarArquivoOrcamento() {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   toast('Arquivo baixado — envie para o celular e use ⋮ → Importar');
 }
-async function importarDoLink() {
-  const mz = location.hash.match(/^#z=(.+)$/), mo = location.hash.match(/^#orc=(.+)$/);
-  if (!mz && !mo) return;
+// lê um link (ou só o código depois do #) e cria o orçamento
+async function importarTexto(txt) {
+  const m = String(txt).match(/[#?&]?(z|orc)=([A-Za-z0-9_-]+)/);
+  if (!m) { toast('Link não reconhecido'); return false; }
   try {
     let c, d, n, l;
-    if (mz) { [c, d, n, l] = JSON.parse(await descomprimir(mz[1])); }
-    else { const x = JSON.parse(unb64(mo[1])); c = x.c; d = x.d; n = x.n; l = x.l; }
+    if (m[1] === 'z') { [c, d, n, l] = JSON.parse(await descomprimir(m[2])); }
+    else { const x = JSON.parse(unb64(m[2])); c = x.c; d = x.d; n = x.n; l = x.l; }
     if (orcamentos.some(o => o.numero === n)) n = proximoNumero();
     const o = await criarOrcamento(c, d, n);
     abrirOrc(o.id);
     for (const [t, loc, ob] of l) await novaAtividade(t || '', loc || '', ob || '');
     toast(`Orçamento carregado: ${l.length} tarefas`);
-    history.replaceState(null, '', location.pathname);
-    return 'home';
-  } catch { toast('Link inválido ou incompleto'); history.replaceState(null, '', location.pathname); }
+    return true;
+  } catch { toast('Link inválido ou incompleto'); return false; }
+}
+async function importarDoLink() {
+  if (!/^#(z|orc)=/.test(location.hash)) return;
+  const ok = await importarTexto(location.hash);
+  history.replaceState(null, '', location.pathname);
+  return ok ? 'home' : undefined;
+}
+// no iPhone o link abre no Safari e não no app instalado: por isso é possível colar o link dentro do app
+function colarLink() {
+  overlay(`<div class="form"><h2 style="color:#fff">Colar link do orçamento</h2>
+    <p style="color:#D9D9D9;margin:6px 0">Copie o link recebido (segure o dedo sobre ele → Copiar), volte para este app e cole abaixo.</p>
+    <textarea id="lkCola" style="min-height:110px" placeholder="Cole o link aqui"></textarea>
+    <div class="row"><button class="sec" id="lkNao">Cancelar</button><button id="lkSim" style="background:var(--verde)">Carregar</button></div></div>`);
+  $('#lkNao').onclick = fechar;
+  $('#lkSim').onclick = async () => {
+    const t = $('#lkCola').value;
+    if (await importarTexto(t)) { fechar(); ir('home'); }
+  };
 }
 
 /* ---------- início ---------- */
