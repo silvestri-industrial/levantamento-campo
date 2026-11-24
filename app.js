@@ -572,4 +572,17 @@ function colarLink() {
 
 /* ---------- início ---------- */
 carregar().then(importarDoLink).then(destino => ir(destino || 'clientes'));
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js');
+const VERSAO = '2026-11-23 · v7';
+if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  const tinhaSW = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    const verifica = () => reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) verifica(); });
+    setInterval(verifica, 5 * 60 * 1000);
+  });
+  // quando uma versão nova assume, recarrega uma vez para mostrar a atualização
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (tinhaSW && !sessionStorage.getItem('recarregou')) { sessionStorage.setItem('recarregou', '1'); location.reload(); }
+  });
+}
