@@ -191,3 +191,7 @@ body.relatorio #print-area{display:block;position:fixed;inset:0;z-index:200;back
   .rp-item{break-inside:auto}
   .rp-tit,.rp-desc{break-after:avoid}
 }
+
+/* o popup precisa ficar acima da tela do relatório */
+#overlay{z-index:300}
+#toast{z-index:400}

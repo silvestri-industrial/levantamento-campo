@@ -650,7 +650,7 @@ async function gerarPdf() {
   y += 4;
   // atividades
   for (let i = 0; i < atividades.length; i++) {
-    toast(`Gerando PDF… atividade ${i + 1} de ${atividades.length}`); await new Promise(r => setTimeout(r, 0));
+    const pg = $('#pdfProg'); if (pg) pg.textContent = `Atividade ${i + 1} de ${atividades.length}`; await new Promise(r => setTimeout(r, 0));
     const a = atividades[i], ms = fotosDe(a.id), fs = ms.filter(m => m.tipo !== 'video'), nv = ms.length - fs.length;
     ensure(40); let y0 = y;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...AZUL); doc.text(`ITEM ${i + 1}`, M + 4, y + 4);
@@ -687,9 +687,14 @@ async function gerarPdf() {
 }
 async function criarPdfEMostrar() {
   const o = orcAberto();
+  // o popup abre logo ao clicar, ja com a mensagem de progresso
+  overlay(`<div class="form"><h2 style="color:#fff">Gerando PDF…</h2>
+    <p style="color:#D9D9D9;margin:6px 0" id="pdfProg">Preparando…</p>
+    <button id="pdfCancela" class="sec" style="width:100%;margin-top:8px">Cancelar</button></div>`);
+  let cancelado = false;
+  $('#pdfCancela').onclick = () => { cancelado = true; fechar(); };
   try {
-    toast('Gerando PDF… aguarde');
-    const blob = await gerarPdf(); if (!blob) return;
+    const blob = await gerarPdf(); if (!blob || cancelado) return;
     const nome = `Relatorio-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_') + '.pdf';
     const url = URL.createObjectURL(blob), mb = (blob.size / 1048576).toFixed(1);
     const arquivo = new File([blob], nome, { type: 'application/pdf' });
@@ -704,12 +709,14 @@ async function criarPdfEMostrar() {
     $('#pdfAbrir').onclick = () => { window.open(url, '_blank') || (location.href = url); };
     $('#pdfBaixar').onclick = () => { const a = document.createElement('a'); a.href = url; a.download = nome; a.click(); };
     $('#pdfFecha').onclick = fechar;
-  } catch (err) { toast('Erro ao gerar PDF: ' + (err.message || err)); }
+  } catch (err) {
+    fechar(); toast('Erro ao gerar PDF: ' + (err.message || err));
+  }
 }
 
 /* ---------- inicio ---------- */
 carregar().then(importarDoLink).then(destino => ir(destino || 'clientes'));
-const VERSAO = '2026-11-23 · v9';
+const VERSAO = '2026-11-23 · v10';
 if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const tinhaSW = !!navigator.serviceWorker.controller;
