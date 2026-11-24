@@ -593,7 +593,7 @@ async function abrirRelatorio() {
     </section>`;
   }).join('');
   area.innerHTML = `
-    <div class="rp-barra"><button class="sec" id="rpVolta">‹ Voltar</button><button id="rpPrint" style="background:var(--verde)">🖨 Imprimir / Salvar PDF</button></div>
+    <div class="rp-barra"><button class="sec" id="rpVolta">‹ Voltar</button><button id="rpPdf" style="background:var(--verde)">📄 Gerar PDF</button><button class="sec" id="rpPrint">🖨 Imprimir</button></div>
     <div class="rp-pagina">
       <div class="rp-cab"><img src="logo-branco.png" alt="Silvestri"><div><b>RELATÓRIO DE LEVANTAMENTO DE CAMPO</b><span>${esc(o.cliente)} · Orçamento nº ${o.numero}</span></div></div>
       <h1>${esc(o.descricao) || '(sem descrição)'}</h1>
@@ -603,6 +603,7 @@ async function abrirRelatorio() {
   document.body.classList.add('relatorio');
   area.scrollTop = 0;
   $('#rpVolta').onclick = () => { document.body.classList.remove('relatorio'); area.innerHTML = ''; };
+  $('#rpPdf').onclick = criarPdfEMostrar;
   $('#rpPrint').onclick = async () => {
     await Promise.all([...area.querySelectorAll('img')].map(im => im.decode ? im.decode().catch(() => {}) : 0));
     const t = document.title; document.title = `Relatorio-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_');
@@ -610,9 +611,105 @@ async function abrirRelatorio() {
   };
 }
 
-/* ---------- início ---------- */
+/* ---------- PDF de verdade (arquivo) - funciona no iPhone, onde "imprimir" nao abre ---------- */
+const limpaPdf = t => String(t ?? '').replace(/[\u2013\u2014]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\u2026/g, '...').replace(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\u00FF]/g, '');
+const carregaImg = src => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+// reduz a foto para o PDF nao ficar gigante
+async function fotoParaPdf(dataUrl, max = 1000) {
+  const im = await carregaImg(dataUrl), k = Math.min(1, max / Math.max(im.width, im.height));
+  const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  return { url: c.toDataURL('image/jpeg', 0.75), w: c.width, h: c.height };
+}
+async function gerarPdf() {
+  const o = orcAberto(); if (!o) return;
+  if (!window.jspdf) { toast('Biblioteca de PDF não carregou. Atualize o app.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const AZUL = [0, 51, 102], CIANO = [0, 168, 232], CINZA = [140, 140, 140], ESC = [27, 36, 48];
+  const M = 15, LARG = 180, FIM = 282;
+  let y = 15;
+  const ensure = h => { if (y + h > FIM) { doc.addPage(); y = 15; } };
+  const texto = (txt, tam, estilo, cor, x = M, larg = LARG) => {
+    doc.setFont('helvetica', estilo); doc.setFontSize(tam); doc.setTextColor(...cor);
+    const linhas = doc.splitTextToSize(limpaPdf(txt), larg);
+    for (const l of linhas) { ensure(tam * 0.43 + 1); doc.text(l, x, y + tam * 0.35); y += tam * 0.43 + 0.6; }
+  };
+  // cabecalho
+  const logo = await fetch('logo-branco.png').then(r => r.blob()).then(blobParaDataURL), li = await carregaImg(logo);
+  doc.setFillColor(...AZUL); doc.roundedRect(M, y, LARG, 24, 2, 2, 'F');
+  const lw = 48, lh = lw * li.height / li.width; doc.addImage(logo, 'PNG', M + 5, y + (24 - lh) / 2, lw, lh);
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('RELATORIO DE LEVANTAMENTO DE CAMPO', M + 62, y + 10);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(217, 217, 217); doc.text(limpaPdf(`${o.cliente} - Orcamento n ${o.numero}`), M + 62, y + 17);
+  y += 31;
+  texto(o.descricao || '(sem descricao)', 15, 'bold', AZUL);
+  const concl = atividades.filter(a => a.concluida).length;
+  const totF = atividades.reduce((n, a) => n + fotosDe(a.id).filter(f => f.tipo !== 'video').length, 0);
+  const totV = atividades.reduce((n, a) => n + fotosDe(a.id).filter(f => f.tipo === 'video').length, 0);
+  y += 1; texto(`Data: ${new Date().toLocaleDateString('pt-BR')}  |  ${atividades.length} atividade(s)  |  ${concl} concluida(s)  |  ${totF} foto(s)${totV ? `  |  ${totV} video(s) fora do PDF` : ''}`, 9, 'normal', CINZA);
+  y += 4;
+  // atividades
+  for (let i = 0; i < atividades.length; i++) {
+    toast(`Gerando PDF… atividade ${i + 1} de ${atividades.length}`); await new Promise(r => setTimeout(r, 0));
+    const a = atividades[i], ms = fotosDe(a.id), fs = ms.filter(m => m.tipo !== 'video'), nv = ms.length - fs.length;
+    ensure(40); let y0 = y;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...AZUL); doc.text(`ITEM ${i + 1}`, M + 4, y + 4);
+    doc.setTextColor(...(a.concluida ? [21, 122, 69] : [180, 35, 35])); doc.text(a.concluida ? 'Concluida' : 'Pendente', M + LARG, y + 4, { align: 'right' });
+    y += 7;
+    texto(a.titulo || '(sem descricao)', 11, 'bold', ESC, M + 4, LARG - 4);
+    texto('Local de instalacao: ' + (a.local || '-'), 10, 'normal', ESC, M + 4, LARG - 4);
+    if (a.obs) texto('Observacoes: ' + a.obs, 10, 'normal', ESC, M + 4, LARG - 4);
+    if (!fs.length) texto('Sem fotos', 9, 'italic', CINZA, M + 4);
+    // fotos: 2 por linha
+    for (let k = 0; k < fs.length; k += 2) {
+      const par = [];
+      for (const f of fs.slice(k, k + 2)) par.push(await fotoParaPdf(f.data));
+      const larg = 86, hs = par.map(p => Math.min(larg * p.h / p.w, 110)), linhaH = Math.max(...hs) + 5;
+      if (y + linhaH + 2 > FIM) { doc.setFillColor(...CIANO); doc.rect(M, y0, 1.2, Math.max(2, y - y0), 'F'); doc.addPage(); y = 15; y0 = y; }
+      par.forEach((p, n) => {
+        const h = hs[n], w = h * p.w / p.h, x = M + 4 + n * (larg + 4);
+        doc.addImage(p.url, 'JPEG', x, y, w, h, undefined, 'FAST');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...CINZA); doc.text(`Foto ${k + n + 1} de ${fs.length}`, x, y + h + 3.5);
+      });
+      y += linhaH;
+    }
+    if (nv) texto(`${nv} video(s) anexado(s) no aplicativo (videos nao entram no PDF).`, 9, 'italic', CINZA, M + 4);
+    doc.setFillColor(...CIANO); doc.rect(M, y0, 1.2, Math.max(2, y - y0), 'F');
+    y += 5; doc.setDrawColor(217, 217, 217); doc.line(M, y - 2.5, M + LARG, y - 2.5);
+  }
+  // rodape com numeracao
+  const n = doc.getNumberOfPages();
+  for (let p = 1; p <= n; p++) {
+    doc.setPage(p); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...CINZA);
+    doc.text(limpaPdf(`Silvestri - ${o.cliente} - Orcamento n ${o.numero}`), M, 291); doc.text(`Pagina ${p} de ${n}`, M + LARG, 291, { align: 'right' });
+  }
+  return doc.output('blob');
+}
+async function criarPdfEMostrar() {
+  const o = orcAberto();
+  try {
+    toast('Gerando PDF… aguarde');
+    const blob = await gerarPdf(); if (!blob) return;
+    const nome = `Relatorio-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_') + '.pdf';
+    const url = URL.createObjectURL(blob), mb = (blob.size / 1048576).toFixed(1);
+    const arquivo = new File([blob], nome, { type: 'application/pdf' });
+    const podeCompartilhar = !!(navigator.canShare && navigator.canShare({ files: [arquivo] }));
+    overlay(`<div class="form"><h2 style="color:#fff">PDF pronto \u2714</h2>
+      <p style="color:#D9D9D9;margin:6px 0">${esc(nome)} (${mb} MB)</p>
+      ${podeCompartilhar ? '<button id="pdfShare" style="width:100%;margin-top:8px;background:var(--verde)">\u{1F4E4} Compartilhar / Salvar em Arquivos</button>' : ''}
+      <button id="pdfAbrir" style="width:100%;margin-top:8px">\u{1F441} Abrir PDF</button>
+      <button id="pdfBaixar" class="sec" style="width:100%;margin-top:8px">\u2B07 Baixar arquivo</button>
+      <button id="pdfFecha" class="sec" style="width:100%;margin-top:8px">Fechar</button></div>`);
+    if (podeCompartilhar) $('#pdfShare').onclick = async () => { try { await navigator.share({ files: [arquivo], title: nome }); } catch (e) { if (e.name !== 'AbortError') toast('Não foi possível compartilhar'); } };
+    $('#pdfAbrir').onclick = () => { window.open(url, '_blank') || (location.href = url); };
+    $('#pdfBaixar').onclick = () => { const a = document.createElement('a'); a.href = url; a.download = nome; a.click(); };
+    $('#pdfFecha').onclick = fechar;
+  } catch (err) { toast('Erro ao gerar PDF: ' + (err.message || err)); }
+}
+
+/* ---------- inicio ---------- */
 carregar().then(importarDoLink).then(destino => ir(destino || 'clientes'));
-const VERSAO = '2026-11-23 · v8';
+const VERSAO = '2026-11-23 · v9';
 if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const tinhaSW = !!navigator.serviceWorker.controller;
