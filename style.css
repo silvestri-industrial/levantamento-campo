@@ -195,3 +195,12 @@ body.relatorio #print-area{display:block;position:fixed;inset:0;z-index:200;back
 /* o popup precisa ficar acima da tela do relatório */
 #overlay{z-index:300}
 #toast{z-index:400}
+
+/* selo de sincronização do orçamento */
+.nv-selo{display:inline-block;margin-left:8px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle;background:rgba(255,255,255,.14);color:#D9D9D9}
+.nv-selo.ok{background:#157A45;color:#fff}
+.nv-selo.env{background:#00A8E8;color:#fff}
+.nv-selo.off{background:#B45309;color:#fff}
+.orc-banner .nv-selo{display:block;width:max-content;margin:6px 0 2px}
+.item.orc .nv-selo{margin:2px 0 4px 0}
+.item.orc .nv-selo.local{background:#e5e7eb;color:#555}

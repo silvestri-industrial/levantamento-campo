@@ -190,7 +190,24 @@ window.NUVEM = (() => {
     if (!navigator.onLine) return `Nuvem: sem internet${p ? ` (${p} a enviar)` : ''}`;
     return p ? `Nuvem: enviando ${p}…` : 'Nuvem: sincronizado ✓';
   }
+  // estado de sincronização de UM orçamento (orçamento + atividades + fotos)
+  function estadoOrc(id) {
+    if (!auth || !user) return 'local';
+    const ativ = [...new Map([...todas, ...atividades].filter(a => a.orcId === id).map(a => [a.id, a])).values()];
+    const falta = (s, x) => !dels[key(s, x.id)] && (x.upd || 1) > (su[key(s, x.id)] || 0);
+    const o = orcamentos.find(x => x.id === id);
+    let p = (o && falta('orcamentos', o)) || ativ.some(a => falta('atividades', a));
+    if (!p) p = ativ.some(a => fotosDe(a.id).some(f => f.tipo !== 'video' && f.data && falta('fotos', f)));
+    if (!p) p = ativ.some(a => Object.keys(dels).some(k => dels[k].atividadeId === a.id));
+    return !p ? 'ok' : navigator.onLine ? 'env' : 'off';
+  }
+  const SELO = { ok: ['☁ Sincronizado ✓', 'ok'], env: ['☁ Enviando…', 'env'], off: ['☁ Sem internet — aguardando', 'off'], local: ['Só neste aparelho', 'local'] };
+  const selo = id => { const [t, c] = SELO[estadoOrc(id)]; return `<span class="nv-selo ${c}" data-nv="${id}">${t}</span>`; };
+  function atualizaSelos() {
+    document.querySelectorAll('.nv-selo').forEach(el => { const [t, c] = SELO[estadoOrc(el.dataset.nv)]; el.textContent = t; el.className = 'nv-selo ' + c; });
+  }
   function atualizaRotulo() {
+    atualizaSelos();
     const b = document.querySelector('[data-act="nuvem"]'); if (!b) return;
     b.textContent = !auth ? '☁ Nuvem indisponível' : user ? `☁ ${textoStatus().replace('Nuvem: ', '')} · Sair` : '☁ Entrar na nuvem';
     const bt = $('#btnMenu'); if (bt) bt.classList.toggle('nuvem-ok', !!user && !erro && navigator.onLine);
@@ -231,5 +248,5 @@ window.NUVEM = (() => {
   }
   // "Apagar tudo" deste aparelho: a nuvem não é apagada; na próxima entrada tudo é baixado de novo
   function zerar() { su = {}; dels = {}; desde = 0; ls.set('nuvem_su', su); ls.set('nuvem_del', dels); ls.set('nuvem_desde', 0); if (user) ouvir(); }
-  return { iniciar, menu, zerar, atualizaRotulo };
+  return { iniciar, menu, zerar, atualizaRotulo, selo };
 })();

@@ -148,7 +148,7 @@ function renderOrcamentos() {
     ${os.map(o => {
       const as = todas.filter(a => a.orcId === o.id);
       return `<div class="item orc" data-id="${o.id}">
-        <div class="t"><span class="orc-tag">ORÇAMENTO Nº ${o.numero}</span>${esc(o.descricao) || '<i>(sem descrição)</i>'}<small>${as.filter(a => a.concluida).length}/${as.length} atividades concluídas</small></div>
+        <div class="t"><span class="orc-tag">ORÇAMENTO Nº ${o.numero}</span>${window.NUVEM ? NUVEM.selo(o.id) : ''}${esc(o.descricao) || '<i>(sem descrição)</i>'}<small>${as.filter(a => a.concluida).length}/${as.length} atividades concluídas</small></div>
         <button class="sec mini" data-ed="${o.id}">✎</button><button class="sec mini" data-del="${o.id}">🗑</button>
       </div>`;
     }).join('')}
@@ -192,7 +192,7 @@ function formOrcamento(o) {
 /* faixa que mostra qual orçamento está aberto */
 function bannerOrc() {
   const o = orcAberto(); if (!o) return '';
-  return `<div class="orc-banner"><small>${esc(o.cliente.toUpperCase())} · ORÇAMENTO Nº ${o.numero}</small><b>${esc(o.descricao) || '(sem descrição)'}</b></div>`;
+  return `<div class="orc-banner"><small>${esc(o.cliente.toUpperCase())} · ORÇAMENTO Nº ${o.numero}</small>${window.NUVEM ? NUVEM.selo(o.id) : ''}<b>${esc(o.descricao) || '(sem descrição)'}</b></div>`;
 }
 
 /* ---------- ATIVIDADES (HOME do orçamento) ---------- */
@@ -731,7 +731,7 @@ async function criarPdfEMostrar() {
 
 /* ---------- inicio ---------- */
 carregar().then(importarDoLink).then(destino => { ir(destino || 'clientes'); if (window.NUVEM) NUVEM.iniciar(); });
-const VERSAO = '2026-11-25 · v11';
+const VERSAO = '2026-11-25 · v11b';
 if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const tinhaSW = !!navigator.serviceWorker.controller;
