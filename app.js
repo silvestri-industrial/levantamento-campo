@@ -213,8 +213,10 @@ function renderHome() {
       </div>`).join('') || '<p class="ajuda">Nenhuma atividade ainda. Use “+ Adicionar serviço” ou ⋮ → Editar lista para colar do Excel.</p>'}
     <button class="add" id="btnAdd">+ Adicionar serviço</button>
     <button class="sec" style="width:100%;margin-top:8px" id="btnEd">📝 Editar lista (colar do Excel)</button>
-    <button style="width:100%;margin-top:8px;background:var(--verde)" id="btnRel">📄 Relatório em PDF (com fotos)</button>`;
-  $('#btnRel').onclick = abrirRelatorio;
+    <button style="width:100%;margin-top:8px;background:var(--verde)" id="btnRel">📄 Relatório em PDF (com fotos)</button>
+    <button class="sec" style="width:100%;margin-top:8px" id="btnRelPend">📄 Relatório das pendentes (PDF)</button>`;
+  $('#btnRel').onclick = () => abrirRelatorio(false);
+  $('#btnRelPend').onclick = () => atividades.some(a => !a.concluida) ? abrirRelatorio(true) : toast('Nenhuma atividade pendente');
   $('#voltaOrc').onclick = () => { clienteAtual = o.cliente; ir('orcamentos'); };
   view.querySelectorAll('.item').forEach(el => el.onclick = () => ir('tarefa', +el.dataset.i));
   $('#btnAdd').onclick = async () => { await novaAtividade(); ir('tarefa', atividades.length - 1); };
@@ -575,12 +577,16 @@ function colarLink() {
 
 /* ---------- RELATÓRIO EM PDF (com todas as fotos) ---------- */
 // Monta o relatório na tela; "Imprimir / Salvar PDF" abre a impressão do aparelho, onde se escolhe "Salvar como PDF".
-async function abrirRelatorio() {
+let relFiltro = false; // true = relatório só das atividades pendentes
+async function abrirRelatorio(apenasPend = false) {
   const o = orcAberto(); if (!o) return toast('Abra um orçamento primeiro');
+  relFiltro = apenasPend === true;
   const area = $('#print-area');
   const dt = new Date().toLocaleDateString('pt-BR');
   let totFotos = 0, totVideos = 0;
+  const lista = relFiltro ? atividades.filter(a => !a.concluida) : atividades;
   const blocos = atividades.map((a, i) => {
+    if (relFiltro && a.concluida) return '';
     const ms = fotosDe(a.id), fs = ms.filter(m => m.tipo !== 'video'), nv = ms.length - fs.length;
     totFotos += fs.length; totVideos += nv;
     return `<section class="rp-item">
@@ -595,9 +601,9 @@ async function abrirRelatorio() {
   area.innerHTML = `
     <div class="rp-barra"><button class="sec" id="rpVolta">‹ Voltar</button><button id="rpPdf" style="background:var(--verde)">📄 Gerar PDF</button><button class="sec" id="rpPrint">🖨 Imprimir</button></div>
     <div class="rp-pagina">
-      <div class="rp-cab"><img src="logo-branco.png" alt="Silvestri"><div><b>RELATÓRIO DE LEVANTAMENTO DE CAMPO</b><span>${esc(o.cliente)} · Orçamento nº ${o.numero}</span></div></div>
+      <div class="rp-cab"><img src="logo-branco.png" alt="Silvestri"><div><b>${relFiltro ? 'RELATÓRIO DE ATIVIDADES PENDENTES' : 'RELATÓRIO DE LEVANTAMENTO DE CAMPO'}</b><span>${esc(o.cliente)} · Orçamento nº ${o.numero}</span></div></div>
       <h1>${esc(o.descricao) || '(sem descrição)'}</h1>
-      <p class="rp-meta">Data: ${dt} · ${atividades.length} atividade(s) · ${atividades.filter(a => a.concluida).length} concluída(s) · ${totFotos} foto(s)${totVideos ? ` · ${totVideos} vídeo(s) fora do PDF` : ''}</p>
+      <p class="rp-meta">Data: ${dt} · ${relFiltro ? `${lista.length} pendente(s) de ${atividades.length} atividade(s)` : `${atividades.length} atividade(s) · ${atividades.filter(a => a.concluida).length} concluída(s)`} · ${totFotos} foto(s)${totVideos ? ` · ${totVideos} vídeo(s) fora do PDF` : ''}</p>
       ${blocos || '<p>Nenhuma atividade neste orçamento.</p>'}
     </div>`;
   document.body.classList.add('relatorio');
@@ -639,18 +645,21 @@ async function gerarPdf() {
   const logo = await fetch('logo-branco.png').then(r => r.blob()).then(blobParaDataURL), li = await carregaImg(logo);
   doc.setFillColor(...AZUL); doc.roundedRect(M, y, LARG, 24, 2, 2, 'F');
   const lw = 48, lh = lw * li.height / li.width; doc.addImage(logo, 'PNG', M + 5, y + (24 - lh) / 2, lw, lh);
-  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('RELATORIO DE LEVANTAMENTO DE CAMPO', M + 62, y + 10);
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(relFiltro ? 'RELATORIO DE ATIVIDADES PENDENTES' : 'RELATORIO DE LEVANTAMENTO DE CAMPO', M + 62, y + 10);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(217, 217, 217); doc.text(limpaPdf(`${o.cliente} - Orcamento n ${o.numero}`), M + 62, y + 17);
   y += 31;
   texto(o.descricao || '(sem descricao)', 15, 'bold', AZUL);
   const concl = atividades.filter(a => a.concluida).length;
-  const totF = atividades.reduce((n, a) => n + fotosDe(a.id).filter(f => f.tipo !== 'video').length, 0);
-  const totV = atividades.reduce((n, a) => n + fotosDe(a.id).filter(f => f.tipo === 'video').length, 0);
-  y += 1; texto(`Data: ${new Date().toLocaleDateString('pt-BR')}  |  ${atividades.length} atividade(s)  |  ${concl} concluida(s)  |  ${totF} foto(s)${totV ? `  |  ${totV} video(s) fora do PDF` : ''}`, 9, 'normal', CINZA);
+  const lista = relFiltro ? atividades.filter(a => !a.concluida) : atividades;
+  const totF = lista.reduce((n, a) => n + fotosDe(a.id).filter(f => f.tipo !== 'video').length, 0);
+  const totV = lista.reduce((n, a) => n + fotosDe(a.id).filter(f => f.tipo === 'video').length, 0);
+  y += 1; texto(`Data: ${new Date().toLocaleDateString('pt-BR')}  |  ${relFiltro ? `${lista.length} pendente(s) de ${atividades.length} atividade(s)` : `${atividades.length} atividade(s)  |  ${concl} concluida(s)`}  |  ${totF} foto(s)${totV ? `  |  ${totV} video(s) fora do PDF` : ''}`, 9, 'normal', CINZA);
   y += 4;
   // atividades
+  let feitasPdf = 0;
   for (let i = 0; i < atividades.length; i++) {
-    const pg = $('#pdfProg'); if (pg) pg.textContent = `Atividade ${i + 1} de ${atividades.length}`; await new Promise(r => setTimeout(r, 0));
+    if (relFiltro && atividades[i].concluida) continue;
+    const pg = $('#pdfProg'); if (pg) pg.textContent = `Atividade ${++feitasPdf} de ${lista.length}`; await new Promise(r => setTimeout(r, 0));
     const a = atividades[i], ms = fotosDe(a.id), fs = ms.filter(m => m.tipo !== 'video'), nv = ms.length - fs.length;
     ensure(40); let y0 = y;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...AZUL); doc.text(`ITEM ${i + 1}`, M + 4, y + 4);
@@ -695,7 +704,7 @@ async function criarPdfEMostrar() {
   $('#pdfCancela').onclick = () => { cancelado = true; fechar(); };
   try {
     const blob = await gerarPdf(); if (!blob || cancelado) return;
-    const nome = `Relatorio-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_') + '.pdf';
+    const nome = `${relFiltro ? 'Pendentes' : 'Relatorio'}-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_') + '.pdf';
     const url = URL.createObjectURL(blob), mb = (blob.size / 1048576).toFixed(1);
     const arquivo = new File([blob], nome, { type: 'application/pdf' });
     const podeCompartilhar = !!(navigator.canShare && navigator.canShare({ files: [arquivo] }));
@@ -716,7 +725,7 @@ async function criarPdfEMostrar() {
 
 /* ---------- inicio ---------- */
 carregar().then(importarDoLink).then(destino => ir(destino || 'clientes'));
-const VERSAO = '2026-11-23 · v10';
+const VERSAO = '2026-11-25 · v10b';
 if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const tinhaSW = !!navigator.serviceWorker.controller;
