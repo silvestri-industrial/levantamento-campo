@@ -704,7 +704,9 @@ async function criarPdfEMostrar() {
   $('#pdfCancela').onclick = () => { cancelado = true; fechar(); };
   try {
     const blob = await gerarPdf(); if (!blob || cancelado) return;
-    const nome = `${relFiltro ? 'Pendentes' : 'Relatorio'}-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_') + '.pdf';
+    const nome = (relFiltro
+      ? `Pendentes - Orçamento - ${o.descricao || o.cliente}`.replace(/[\\/:*?"<>|\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim()
+      : `Relatorio-Orcamento-${o.numero}-${o.cliente}`.replace(/[^\w-]+/g, '_')) + '.pdf';
     const url = URL.createObjectURL(blob), mb = (blob.size / 1048576).toFixed(1);
     const arquivo = new File([blob], nome, { type: 'application/pdf' });
     const podeCompartilhar = !!(navigator.canShare && navigator.canShare({ files: [arquivo] }));
@@ -725,7 +727,7 @@ async function criarPdfEMostrar() {
 
 /* ---------- inicio ---------- */
 carregar().then(importarDoLink).then(destino => ir(destino || 'clientes'));
-const VERSAO = '2026-11-25 · v10b';
+const VERSAO = '2026-11-25 · v10c';
 if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const tinhaSW = !!navigator.serviceWorker.controller;
