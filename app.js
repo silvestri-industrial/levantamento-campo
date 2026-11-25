@@ -42,8 +42,8 @@ const proximoNumero = () => orcamentos.reduce((m, o) => Math.max(m, +o.numero ||
 const orcAberto = () => orcamentos.find(o => o.id === orcAtual);
 function sync() { if (orcAtual) todas = todas.filter(a => a.orcId !== orcAtual).concat(atividades); }
 
-async function criarOrcamento(cliente, descricao, numero) {
-  const o = { id: uid(), cliente: cliente.trim() || 'Sem cliente', descricao: descricao.trim(), numero: numero || proximoNumero() };
+async function criarOrcamento(cliente, descricao, numero, id) {
+  const o = { id: id || uid(), cliente: cliente.trim() || 'Sem cliente', descricao: descricao.trim(), numero: numero || proximoNumero() };
   orcamentos.push(o); await DB.salvarOrcamento(o); return o;
 }
 function abrirOrc(id) {
@@ -69,8 +69,8 @@ async function reordenar() {
     if (atividades[i].ordem !== i) { atividades[i].ordem = i; await DB.salvarAtividade(atividades[i]); }
   }
 }
-async function novaAtividade(titulo = '', local = '', obs = '') {
-  const a = { id: uid(), orcId: orcAtual, ordem: atividades.length, titulo, local, obs, concluida: false };
+async function novaAtividade(titulo = '', local = '', obs = '', id) {
+  const a = { id: id || uid(), orcId: orcAtual, ordem: atividades.length, titulo, local, obs, concluida: false };
   atividades.push(a); await DB.salvarAtividade(a); return a;
 }
 async function excluirAtividade(id) {
@@ -99,9 +99,10 @@ $('#menu').onclick = async e => {
   if (act === 'exportar') exportar();
   if (act === 'importar') $('#fileImport').click();
   if (act === 'colarlink') colarLink();
+  if (act === 'nuvem' && window.NUVEM) NUVEM.menu();
   if (act === 'relatorio') { if (!orcAtual) return toast('Abra um orçamento primeiro'); abrirRelatorio(); }
   if (act === 'apagar' && await confirmar('Apagar TODOS os clientes, orçamentos, atividades e fotos deste aparelho?')) {
-    await DB.limpar(); orcamentos = []; todas = []; atividades = []; fotos = {}; orcAtual = null; ir('clientes');
+    await DB.limpar(); if (window.NUVEM) NUVEM.zerar(); orcamentos = []; todas = []; atividades = []; fotos = {}; orcAtual = null; ir('clientes');
   }
 };
 
@@ -226,6 +227,7 @@ function renderHome() {
 /* ---------- TAREFA ---------- */
 function renderTarefa() {
   if (!atividades.length) return ir('home');
+  if (idx > atividades.length - 1) idx = atividades.length - 1;
   const a = atividades[idx], fs = fotosDe(a.id);
   const anim = direcao ? ' anim-' + direcao : ''; direcao = '';
   view.innerHTML = bannerOrc() + `<div class="pagina${anim}">
@@ -518,7 +520,7 @@ async function descomprimir(b64) {
 async function gerarLink() {
   const o = orcAberto();
   if (!o || !atividades.length) return toast('Cole as tarefas primeiro');
-  const dados = [o.cliente, o.descricao, o.numero, atividades.map(a => a.obs ? [a.titulo, a.local, a.obs] : [a.titulo, a.local])];
+  const dados = [o.cliente, o.descricao, o.numero, atividades.map(a => a.obs ? [a.titulo, a.local, a.obs] : [a.titulo, a.local]), o.id, atividades.map(a => a.id)];
   let url;
   try { url = location.href.split('#')[0] + '#z=' + await comprimir(JSON.stringify(dados)); }
   catch { url = location.href.split('#')[0] + '#orc=' + b64(JSON.stringify({ c: o.cliente, d: o.descricao, n: o.numero, l: dados[3] })); }
@@ -545,13 +547,15 @@ async function importarTexto(txt) {
   const m = String(txt).match(/[#?&]?(z|orc)=([A-Za-z0-9_-]+)/);
   if (!m) { toast('Link não reconhecido'); return false; }
   try {
-    let c, d, n, l;
-    if (m[1] === 'z') { [c, d, n, l] = JSON.parse(await descomprimir(m[2])); }
+    let c, d, n, l, oid, aids;
+    if (m[1] === 'z') { [c, d, n, l, oid, aids] = JSON.parse(await descomprimir(m[2])); }
     else { const x = JSON.parse(unb64(m[2])); c = x.c; d = x.d; n = x.n; l = x.l; }
+    const ja = oid && orcamentos.find(x => x.id === oid);
+    if (ja) { abrirOrc(ja.id); toast('Este orçamento já está no aparelho'); return true; }
     if (orcamentos.some(o => o.numero === n)) n = proximoNumero();
-    const o = await criarOrcamento(c, d, n);
+    const o = await criarOrcamento(c, d, n, oid);
     abrirOrc(o.id);
-    for (const [t, loc, ob] of l) await novaAtividade(t || '', loc || '', ob || '');
+    for (const [i, [t, loc, ob]] of l.entries()) await novaAtividade(t || '', loc || '', ob || '', aids && aids[i]);
     toast(`Orçamento carregado: ${l.length} tarefas`);
     return true;
   } catch { toast('Link inválido ou incompleto'); return false; }
@@ -726,8 +730,8 @@ async function criarPdfEMostrar() {
 }
 
 /* ---------- inicio ---------- */
-carregar().then(importarDoLink).then(destino => ir(destino || 'clientes'));
-const VERSAO = '2026-11-25 · v10c';
+carregar().then(importarDoLink).then(destino => { ir(destino || 'clientes'); if (window.NUVEM) NUVEM.iniciar(); });
+const VERSAO = '2026-11-25 · v11';
 if ($('#versao')) $('#versao').textContent = 'Versão ' + VERSAO;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   const tinhaSW = !!navigator.serviceWorker.controller;

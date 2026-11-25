@@ -19,7 +19,7 @@ const DB = (() => {
     tx.oncomplete = () => res(out && out.result !== undefined ? out.result : undefined);
     tx.onerror = () => rej(tx.error);
   });
-  return {
+  const raw = {
     open,
     todosOrcamentos: () => run('orcamentos', 'readonly', s => s.getAll()),
     salvarOrcamento: o => run('orcamentos', 'readwrite', s => s.put(o)),
@@ -36,4 +36,16 @@ const DB = (() => {
       await run('fotos', 'readwrite', s => s.clear());
     }
   };
+  // Versão usada pelo app: carimba "upd" (hora da alteração) e avisa a nuvem (nuvem.js).
+  // "raw" grava sem carimbar nem avisar (usado quando a mudança veio da nuvem).
+  const api = { ...raw, raw, aoSalvar: null, aoApagar: null };
+  const salva = (nome, store) => o => { o.upd = Date.now(); const r = raw[nome](o); if (api.aoSalvar) api.aoSalvar(store, o); return r; };
+  const apaga = (nome, store) => id => { if (api.aoApagar) api.aoApagar(store, id); return raw[nome](id); };
+  api.salvarOrcamento = salva('salvarOrcamento', 'orcamentos');
+  api.salvarAtividade = salva('salvarAtividade', 'atividades');
+  api.salvarFoto = salva('salvarFoto', 'fotos');
+  api.apagarOrcamento = apaga('apagarOrcamento', 'orcamentos');
+  api.apagarAtividade = apaga('apagarAtividade', 'atividades');
+  api.apagarFoto = apaga('apagarFoto', 'fotos');
+  return api;
 })();
